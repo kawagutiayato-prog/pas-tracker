@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSA SOLD Tracker</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0D0D0F; --card:#1A1A2E; --border:#2a2a3e;
+  --gold:#FFD700; --green:#00D084; --red:#FF4B4B;
+  --silver:#C0C0C0; --bronze:#CD7F32;
+  --text:#E8E8E8; --muted:#666; --sub:#888;
+}
+body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; min-height:100vh; padding-bottom:40px; }
+
+/* ── HEADER ── */
+.header {
+  position:sticky; top:0; z-index:100;
+  background:var(--bg); border-bottom:1px solid #1e1e2e;
+  padding:12px 16px; display:flex; align-items:center; gap:10px;
+}
+.logo {
+  width:28px; height:28px; border-radius:6px;
+  background:linear-gradient(135deg,#FFD700,#FF8C00);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:900; color:#0D0D0F;
+  box-shadow:0 0 10px #FFD70066; flex-shrink:0;
+}
+.header-title { font-size:13px; font-weight:800; letter-spacing:1px; color:var(--gold); }
+.header-sub   { font-size:9px; color:#444; letter-spacing:2px; }
+.header-right { margin-left:auto; font-size:9px; color:#333; font-family:monospace; text-align:right; line-height:1.4; }
+
+/* ── COUNTDOWN ── */
+.countdown {
+  margin:12px 16px 0;
+  background:linear-gradient(135deg,#1A1A2E,#0D0D1F);
+  border:1px solid #FFD70033; border-radius:12px; padding:12px 14px;
+  box-shadow:0 0 20px #FFD70011;
+}
+.cd-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.cd-date { font-size:10px; color:var(--gold); font-weight:700; }
+.cd-phase {
+  background:#FFD70022; border:1px solid #FFD70066;
+  border-radius:20px; padding:3px 10px;
+  font-size:10px; color:var(--gold); font-weight:800;
+}
+.cd-boxes { display:flex; gap:6px; }
+.cd-box {
+  flex:1; background:#0D0D0F; border:1px solid #FFD70044;
+  border-radius:8px; padding:6px 4px; text-align:center;
+  box-shadow:inset 0 0 8px #FFD70011;
+}
+.cd-num  { font-size:18px; font-weight:900; font-family:monospace; color:var(--gold); }
+.cd-lbl  { font-size:7px; color:#555; margin-top:2px; }
+.cd-hint {
+  margin-top:8px; padding:7px 10px;
+  background:#0D0D0F44; border-radius:8px;
+  font-size:9px; color:#777; line-height:1.6;
+}
+.cd-hint b { color:var(--gold); }
+
+/* ── SEARCH ── */
+.search-wrap { padding:12px 16px 0; position:relative; }
+.search-box {
+  display:flex; align-items:center; gap:8px;
+  background:var(--card); border:1px solid #2a2a4e;
+  border-radius:10px; padding:0 4px 0 12px;
+  box-shadow:0 0 20px #FFD70011;
+}
+.search-icon { color:#444; font-size:14px; flex-shrink:0; }
+.search-input {
+  background:transparent; border:none; outline:none;
+  color:var(--text); font-size:13px; flex:1;
+  padding:12px 0; font-family:inherit;
+}
+.search-input::placeholder { color:#444; }
+.search-btn {
+  background:linear-gradient(135deg,#FFD700,#FFA500);
+  border:none; border-radius:8px; padding:8px 14px;
+  color:#0D0D0F; font-weight:800; font-size:12px;
+  cursor:pointer; margin:4px 0; white-space:nowrap;
+}
+.search-btn:hover { opacity:.9; }
+
+/* ── SUGGESTIONS DROPDOWN ── */
+.suggestions {
+  position:absolute; top:calc(100% + 2px); left:16px; right:16px;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; z-index:200; overflow:hidden;
+  box-shadow:0 12px 32px #00000099;
+  max-height:360px; overflow-y:auto;
+}
+.sug-item {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; cursor:pointer;
+  border-bottom:1px solid #1e1e2e;
+  transition:background .12s;
+}
+.sug-item:last-child { border-bottom:none; }
+.sug-item:hover { background:#2a2a4e; }
+.sug-img {
+  width:44px; height:60px; object-fit:contain;
+  border-radius:4px; background:#0D0D0F; flex-shrink:0;
+  border:1px solid #2a2a3e;
+}
+.sug-img-placeholder {
+  width:44px; height:60px; flex-shrink:0;
+  background:linear-gradient(135deg,#1a1a2e,#2a2a4e);
+  border-radius:4px; border:1px solid #2a2a3e;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px;
+}
+.sug-info { flex:1; min-width:0; }
+.sug-name  { font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sug-meta  { font-size:10px; color:var(--muted); margin-top:2px; }
+.sug-rarity { font-size:9px; color:var(--gold); }
+.sug-loading { padding:16px; text-align:center; font-size:12px; color:var(--muted); }
+
+/* ── CARD PICKER (画像グリッド) ── */
+.card-picker { padding:12px 16px 0; }
+.picker-label { font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; }
+.picker-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:8px;
+}
+.picker-card {
+  background:var(--card); border:1.5px solid var(--border);
+  border-radius:10px; padding:8px 6px; cursor:pointer;
+  text-align:center; transition:border-color .15s, box-shadow .15s;
+}
+.picker-card:hover, .picker-card.active {
+  border-color:var(--gold); box-shadow:0 0 12px #FFD70033;
+}
+.picker-img {
+  width:100%; aspect-ratio:2/3; object-fit:contain;
+  border-radius:4px; margin-bottom:5px;
+}
+.picker-name { font-size:9px; color:var(--text); line-height:1.3; }
+.picker-set  { font-size:8px; color:var(--muted); margin-top:2px; }
+
+/* ── GRADE TABS ── */
+.grade-tabs { display:flex; gap:6px; padding:10px 16px 0; }
+.grade-btn {
+  flex:1; border:1.5px solid var(--border);
+  background:transparent; border-radius:8px; padding:8px 0;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:border-color .15s;
+}
+.grade-btn.active-10 { border-color:var(--gold); }
+.grade-btn.active-9  { border-color:var(--silver); }
+.grade-btn.active-8  { border-color:var(--bronze); }
+.grade-badge {
+  display:inline-flex; flex-direction:column; align-items:center;
+  border-radius:6px; padding:2px 10px; min-width:46px;
+}
+.grade-badge .psa-label { font-size:7px; letter-spacing:2px; font-family:monospace; font-weight:700; }
+.grade-badge .psa-num   { font-size:18px; font-family:monospace; font-weight:900; line-height:1.1; }
+.g10 { color:var(--gold);   background:linear-gradient(135deg,#FFD70022,#FFD70044); border:1px solid var(--gold);   box-shadow:0 0 6px #FFD70033; }
+.g9  { color:var(--silver); background:linear-gradient(135deg,#C0C0C022,#C0C0C044); border:1px solid var(--silver); box-shadow:0 0 6px #C0C0C033; }
+.g8  { color:var(--bronze); background:linear-gradient(135deg,#CD7F3222,#CD7F3244); border:1px solid var(--bronze); box-shadow:0 0 6px #CD7F3233; }
+
+/* ── RESULT PANELS ── */
+.panel { margin:10px 16px 0; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; }
+
+.price-row { display:flex; align-items:center; justify-content:space-between; }
+.price-main { font-size:28px; font-weight:900; font-family:monospace; }
+.price-change { font-size:11px; font-weight:700; margin-top:2px; }
+.price-pop { font-size:9px; color:#555; margin-top:4px; }
+.price-label { font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:4px; }
+
+/* スコアメーター */
+.score-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.score-circle { position:relative; width:64px; height:64px; }
+.score-label { font-size:10px; font-weight:700; letter-spacing:1px; }
+
+/* チャート */
+.chart-bars { display:flex; align-items:flex-end; gap:3px; height:56px; margin-top:8px; }
+.chart-bar { flex:1; border-radius:3px 3px 0 0; transition:height .3s ease; }
+.chart-labels { display:flex; justify-content:space-between; margin-top:3px; }
+.chart-lbl { font-size:7px; color:#444; }
+.chart-stats { display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.chart-stat { text-align:center; }
+.chart-stat-label { font-size:8px; color:#555; margin-bottom:2px; }
+.chart-stat-val { font-size:12px; font-family:monospace; font-weight:700; }
+
+/* タブ */
+.tabs { display:flex; gap:1px; margin:10px 16px 0; background:var(--card); border-radius:10px; padding:3px; border:1px solid var(--border); }
+.tab-btn {
+  flex:1; border:none; border-radius:8px; padding:7px 0;
+  background:transparent; color:var(--muted);
+  font-size:11px; cursor:pointer; font-family:inherit; transition:all .15s;
+}
+.tab-btn.active { background:#2a2a4e; color:var(--text); font-weight:700; }
+
+/* 比較タブ */
+.compare-row { padding:10px 0; border-bottom:1px solid var(--border); }
+.compare-row:last-child { border-bottom:none; }
+.compare-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+.compare-spark { display:flex; align-items:center; gap:8px; }
+.compare-price { text-align:right; }
+.compare-price-val { font-size:14px; font-weight:800; font-family:monospace; }
+.compare-price-chg { font-size:10px; font-weight:700; }
+.score-bar-wrap { display:flex; align-items:center; gap:6px; }
+.score-bar-bg { flex:1; height:4px; background:#2a2a3e; border-radius:2px; overflow:hidden; }
+.score-bar-fill { height:100%; border-radius:2px; }
+.score-bar-label { font-size:9px; font-weight:700; min-width:52px; }
+
+/* 空状態 */
+.empty { text-align:center; padding:40px 20px; color:var(--muted); }
+.empty-icon { font-size:32px; margin-bottom:10px; }
+.empty-text { font-size:13px; margin-bottom:6px; }
+.empty-sub  { font-size:10px; color:#444; }
+.quick-picks { padding:10px 16px 0; display:flex; flex-wrap:wrap; gap:6px; }
+.quick-btn {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:20px; padding:5px 12px; color:var(--sub);
+  font-size:10px; cursor:pointer; font-family:inherit; transition:border-color .15s;
+}
+.quick-btn:hover { border-color:#FFD70066; color:var(--text); }
+
+/* ローディング */
+.loading { text-align:center; padding:30px; color:var(--muted); font-size:12px; }
+
+/* 選択済みカード表示 */
+.selected-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:12px 14px; margin:10px 16px 0;
+  display:flex; align-items:center; gap:12px;
+}
+.selected-img {
+  width:56px; height:76px; object-fit:contain;
+  border-radius:6px; border:1px solid var(--border);
+  background:#0D0D0F; flex-shrink:0;
+}
+.selected-info { flex:1; }
+.selected-name { font-size:15px; font-weight:800; }
+.selected-meta { font-size:10px; color:var(--muted); margin-top:2px; }
+.selected-rarity { font-size:9px; color:var(--gold); margin-top:3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">P</div>
+  <div>
+    <div class="header-title">PSA SOLD</div>
+    <div class="header-sub">PRICE TRACKER</div>
+  </div>
+  <div class="header-right">スニーカーダンク<br>SOLD基準</div>
+</div>
+
+<!-- COUNTDOWN -->
+<div class="countdown">
+  <div class="cd-top">
+    <div>
+      <div style="font-size:8px;color:#555;letter-spacing:2px">ポケモン30周年まで</div>
+      <div class="cd-date">📅 2026年10月20日</div>
+    </div>
+    <div class="cd-phase" id="cd-phase">計算中...</div>
+  </div>
+  <div class="cd-boxes">
+    <div class="cd-box"><div class="cd-num" id="cd-d">--</div><div class="cd-lbl">日</div></div>
+    <div class="cd-box"><div class="cd-num" id="cd-h">--</div><div class="cd-lbl">時間</div></div>
+    <div class="cd-box"><div class="cd-num" id="cd-m">--</div><div class="cd-lbl">分</div></div>
+    <div class="cd-box"><div class="cd-num" id="cd-s">--</div><div class="cd-lbl">秒</div></div>
+  </div>
+  <div class="cd-hint" id="cd-hint">...</div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-wrap">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input id="search-input" class="search-input" type="text"
+      placeholder="カード名を入力（例：ミュウツー、リザードン）"
+      autocomplete="off" spellcheck="false">
+    <button class="search-btn" onclick="doSearch()">検索</button>
+  </div>
+  <div class="suggestions" id="suggestions" style="display:none"></div>
+</div>
+
+<!-- QUICK PICKS -->
+<div class="quick-picks" id="quick-picks">
+  <div class="quick-btn" onclick="quickSearch('ミュウツーV')">ミュウツーV</div>
+  <div class="quick-btn" onclick="quickSearch('リザードン')">リザードン</div>
+  <div class="quick-btn" onclick="quickSearch('ピカチュウ')">ピカチュウ</div>
+  <div class="quick-btn" onclick="quickSearch('イーブイ')">イーブイ</div>
+  <div class="quick-btn" onclick="quickSearch('ゲンガー')">ゲンガー</div>
+  <div class="quick-btn" onclick="quickSearch('ルカリオ')">ルカリオ</div>
+</div>
+
+<!-- CARD PICKER (画像グリッド) -->
+<div id="card-picker" style="display:none"></div>
+
+<!-- SELECTED CARD -->
+<div id="selected-card" style="display:none"></div>
+
+<!-- LOADING -->
+<div id="loading" class="loading" style="display:none">
+  <div style="font-size:24px;margin-bottom:8px">⏳</div>
+  カード情報を取得中...
+</div>
+
+<!-- GRADE TABS -->
+<div id="grade-tabs" style="display:none" class="grade-tabs">
+  <button class="grade-btn active-10" onclick="setGrade(10)">
+    <div class="grade-badge g10"><span class="psa-label">PSA</span><span class="psa-num">10</span></div>
+  </button>
+  <button class="grade-btn" onclick="setGrade(9)">
+    <div class="grade-badge g9"><span class="psa-label">PSA</span><span class="psa-num">9</span></div>
+  </button>
+  <button class="grade-btn" onclick="setGrade(8)">
+    <div class="grade-badge g8"><span class="psa-label">PSA</span><span class="psa-num">8</span></div>
+  </button>
+</div>
+
+<!-- PRICE PANEL -->
+<div id="price-panel" style="display:none" class="panel">
+  <div class="price-label" id="price-label">直近SOLD価格</div>
+  <div class="price-row">
+    <div>
+      <div class="price-main" id="price-main">--</div>
+      <div class="price-change" id="price-change">--</div>
+      <div class="price-pop" id="price-pop">--</div>
+    </div>
+    <div class="score-wrap">
+      <div class="score-circle">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="26" fill="none" stroke="#2a2a3e" stroke-width="6"/>
+          <circle id="score-arc" cx="32" cy="32" r="26" fill="none"
+            stroke="#00D084" stroke-width="6"
+            stroke-dasharray="0 163.4" stroke-linecap="round"
+            transform="rotate(-90 32 32)"
+            style="filter:drop-shadow(0 0 4px #00D08488);transition:stroke-dasharray .4s ease,stroke .3s"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <span id="score-num" style="font-size:16px;font-weight:900;font-family:monospace;color:#00D084">--</span>
+        </div>
+      </div>
+      <span id="score-label" class="score-label" style="color:#00D084">--</span>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div id="result-tabs" style="display:none" class="tabs">
+  <button class="tab-btn active" id="tab-chart" onclick="setTab('chart')">推移チャート</button>
+  <button class="tab-btn" id="tab-compare" onclick="setTab('compare')">グレード比較</button>
+</div>
+
+<!-- CHART PANEL -->
+<div id="chart-panel" style="display:none" class="panel">
+  <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:2px">8週間 SOLD推移</div>
+  <div class="chart-bars" id="chart-bars"></div>
+  <div class="chart-labels" id="chart-labels"></div>
+  <div class="chart-stats" id="chart-stats"></div>
+</div>
+
+<!-- COMPARE PANEL -->
+<div id="compare-panel" style="display:none" class="panel">
+  <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:10px">グレード別比較</div>
+  <div id="compare-rows"></div>
+</div>
+
+<div id="demo-note" style="display:none;text-align:center;margin-top:14px;font-size:9px;color:#333">
+  ※ デモデータ表示中 ／ 実データはスニーカーダンクSOLD連携で取得
+</div>
+
+<script>
+// ────────────────────────────────────────────
+// カウントダウン
+// ────────────────────────────────────────────
+const ANNIVERSARY = new Date("2026-10-20T00:00:00+09:00");
+function updateCountdown() {
+  const diff = ANNIVERSARY - Date.now();
+  if (diff <= 0) return;
+  const days = Math.floor(diff / 86400000);
+  const h    = Math.floor((diff % 86400000) / 3600000);
+  const m    = Math.floor((diff % 3600000)  / 60000);
+  const s    = Math.floor((diff % 60000)    / 1000);
+  const p = n => String(n).padStart(2,"0");
+  document.getElementById("cd-d").textContent = days;
+  document.getElementById("cd-h").textContent = p(h);
+  document.getElementById("cd-m").textContent = p(m);
+  document.getElementById("cd-s").textContent = p(s);
+
+  const phase = days>120?"仕込み期":days>60?"上昇期":days>14?"ピーク直前":days>0?"最終売り場":"30周年当日";
+  const hint  = days>120?"PSA10は保有継続。まだ仕込み段階。PSA9以下は売り検討。":
+                days>60?"上昇フェーズ突入。PSA10は周年2〜3週前に最大瞬間風速。":
+                days>14?"ピーク直前。高値更新したら即出し。":
+                days>0?"最終売り場。イベント後は急落傾向あり。今週中に売り切れ。":
+                "30周年当日。ここから下落局面に入る可能性大。";
+  document.getElementById("cd-phase").textContent = phase;
+  document.getElementById("cd-hint").innerHTML = `<b>戦略：</b>${hint}`;
+}
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
+// ────────────────────────────────────────────
+// データ（モック）
+// ────────────────────────────────────────────
+const MOCK_CARDS = {
+  "ミュウツーV SR": {
+    set:"Pokémon GO", illustrator:"ミキmiki", rarity:"SR",
+    image:"https://assets.tcgdex.net/ja/sv/sv3pt5/141/high.webp",
+    grades:{
+      10:{prices:[48000,52000,49500,55000,58000,61000,59000,63000],pop:142},
+      9: {prices:[28000,29500,27000,31000,30000,32000,31500,33000],pop:387},
+      8: {prices:[18000,17500,19000,18500,20000,19500,21000,20500],pop:214},
+    }
+  },
+  "リザードン VMAX SSR": {
+    set:"Shiny Star V", illustrator:"川原インコ", rarity:"SSR",
+    image:"https://assets.tcgdex.net/ja/swsh/swsh4-5/307/high.webp",
+    grades:{
+      10:{prices:[120000,135000,128000,142000,138000,155000,148000,162000],pop:89},
+      9: {prices:[65000,70000,68000,74000,72000,78000,75000,81000],pop:256},
+      8: {prices:[38000,40000,37500,42000,41000,44000,43000,46000],pop:198},
+    }
+  },
+  "ピカチュウ V-UNION": {
+    set:"VMAX Climax", illustrator:"オモチャ", rarity:"HR",
+    image:"https://assets.tcgdex.net/ja/swsh/swsh12a/025/high.webp",
+    grades:{
+      10:{prices:[8500,9200,8800,9800,10200,10800,11000,11500],pop:312},
+      9: {prices:[4800,5100,4900,5300,5500,5800,6000,6200],pop:521},
+      8: {prices:[2800,3000,2900,3100,3200,3300,3400,3500],pop:289},
+    }
+  },
+  "イーブイ HR": {
+    set:"VMAX Climax", illustrator:"Akira Egawa", rarity:"HR",
+    image:"https://assets.tcgdex.net/ja/swsh/swsh12a/133/high.webp",
+    grades:{
+      10:{prices:[32000,34000,33000,36000,35500,38000,37000,39500],pop:201},
+      9: {prices:[18000,19000,18500,20000,19800,21000,20500,22000],pop:445},
+      8: {prices:[10000,10500,10200,11000,11200,11800,11500,12000],pop:267},
+    }
+  },
+};
+const WEEKS = ["7週前","6週前","5週前","4週前","3週前","2週前","先週","直近"];
+const GRADE_COLORS = {10:"#FFD700",9:"#C0C0C0",8:"#CD7F32"};
+const RENDER_API = "https://pas-tracker.onrender.com";
+
+// ────────────────────────────────────────────
+// 状態
+// ────────────────────────────────────────────
+let state = { selectedCard:null, selectedGrade:10, activeTab:"chart", pickerCards:[] };
+let suggestTimeout = null;
+
+// ────────────────────────────────────────────
+// ユーティリティ
+// ────────────────────────────────────────────
+function getPriceChange(prices=[]) {
+  if (prices.length<2) return 0;
+  return ((prices.at(-1)-prices.at(-2))/prices.at(-2))*100;
+}
+function getSellScore(prices=[]) {
+  if (prices.length<4) return 50;
+  const m=(prices.at(-1)-prices.at(-3))/prices.at(-3);
+  if (m>0.08) return 88;
+  if (m>0.04) return 74;
+  if (m>0)    return 62;
+  if (m>-0.04) return 45;
+  return 28;
+}
+function scoreColor(s) { return s>=70?"#00D084":s>=45?"#FFD700":"#FF4B4B"; }
+function scoreText(s)  { return s>=70?"今が売り時":s>=45?"様子見":"待て"; }
+
+// ────────────────────────────────────────────
+// 検索サジェスト（TCGdex API）
+// ────────────────────────────────────────────
+const input = document.getElementById("search-input");
+const sugBox = document.getElementById("suggestions");
+
+input.addEventListener("input", () => {
+  clearTimeout(suggestTimeout);
+  const q = input.value.trim();
+  if (!q) { hideSuggestions(); return; }
+  suggestTimeout = setTimeout(() => fetchSuggestions(q), 280);
+});
+
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") { hideSuggestions(); doSearch(); }
+  if (e.key === "Escape") hideSuggestions();
+});
+
+document.addEventListener("click", e => {
+  if (!e.target.closest(".search-wrap")) hideSuggestions();
+});
+
+async function fetchSuggestions(q) {
+  sugBox.style.display = "block";
+  sugBox.innerHTML = `<div class="sug-loading">🔍 検索中...</div>`;
+
+  // まずモックデータから候補
+  const mockHits = Object.keys(MOCK_CARDS).filter(k => k.includes(q));
+
+  try {
+    const url = `https://api.tcgdex.net/v2/ja/cards?name=${encodeURIComponent(q)}&sort:field=localId&sort:order=DESC&pagination:page=1&pagination:itemsPerPage=12`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const cards = Array.isArray(data) ? data : [];
+    renderSuggestions(cards, q, mockHits);
+  } catch {
+    // APIが失敗してもモックで表示
+    renderSuggestionsFromMock(q);
+  }
+}
+
+function renderSuggestions(apiCards, q, mockHits) {
+  if (!apiCards.length && !mockHits.length) {
+    sugBox.innerHTML = `<div class="sug-loading" style="color:#555">「${q}」に一致するカードが見つかりません</div>`;
+    return;
+  }
+  let html = "";
+
+  // モックカード（デモデータあり）を先頭に
+  mockHits.forEach(name => {
+    const c = MOCK_CARDS[name];
+    const imgHtml = c.image
+      ? `<img class="sug-img" src="${c.image}" alt="${name}" onerror="this.style.display='none'">`
+      : `<div class="sug-img-placeholder">🃏</div>`;
+    html += `<div class="sug-item" onclick="selectCardByName('${name.replace(/'/g,"\\'")}')">
+      ${imgHtml}
+      <div class="sug-info">
+        <div class="sug-name">${name}</div>
+        <div class="sug-meta">${c.set} ／ ${c.illustrator}</div>
+        <div class="sug-rarity">⭐ ${c.rarity} ★ デモデータあり</div>
+      </div>
+    </div>`;
+  });
+
+  // API結果（モックに含まれないもの）
+  apiCards.slice(0,8).forEach(card => {
+    const name = card.name || "";
+    if (mockHits.includes(name)) return; // 重複スキップ
+    const imgUrl = card.image ? card.image + "/high.webp" : null;
+    const imgHtml = imgUrl
+      ? `<img class="sug-img" src="${imgUrl}" alt="${name}" onerror="this.style.display='none'">`
+      : `<div class="sug-img-placeholder">🃏</div>`;
+    const setName = card.set?.name || "";
+    const localId = card.localId || "";
+    const rarity  = card.rarity || "";
+    const id = JSON.stringify({name, set:setName, localId, image:imgUrl, id:card.id});
+    html += `<div class="sug-item" onclick='selectCardFromApi(${id.replace(/'/g,"&apos;")})'>
+      ${imgHtml}
+      <div class="sug-info">
+        <div class="sug-name">${name}</div>
+        <div class="sug-meta">${setName} #${localId}</div>
+        <div class="sug-rarity">${rarity}</div>
+      </div>
+    </div>`;
+  });
+
+  sugBox.innerHTML = html || `<div class="sug-loading" style="color:#555">候補なし</div>`;
+  sugBox.style.display = "block";
+}
+
+function renderSuggestionsFromMock(q) {
+  const hits = Object.keys(MOCK_CARDS).filter(k => k.includes(q));
+  if (!hits.length) { sugBox.innerHTML = `<div class="sug-loading" style="color:#555">候補なし</div>`; return; }
+  let html = "";
+  hits.forEach(name => {
+    const c = MOCK_CARDS[name];
+    const imgHtml = c.image
+      ? `<img class="sug-img" src="${c.image}" alt="${name}" onerror="this.style.display='none'">`
+      : `<div class="sug-img-placeholder">🃏</div>`;
+    html += `<div class="sug-item" onclick="selectCardByName('${name.replace(/'/g,"\\'")}')">
+      ${imgHtml}
+      <div class="sug-info">
+        <div class="sug-name">${name}</div>
+        <div class="sug-meta">${c.set} ／ ${c.illustrator}</div>
+        <div class="sug-rarity">⭐ ${c.rarity}</div>
+      </div>
+    </div>`;
+  });
+  sugBox.innerHTML = html;
+}
+
+function hideSuggestions() { sugBox.style.display = "none"; }
+
+// ────────────────────────────────────────────
+// カード検索（画像グリッド表示）
+// ────────────────────────────────────────────
+async function doSearch() {
+  const q = input.value.trim();
+  if (!q) return;
+  hideSuggestions();
+  showLoading();
+  hideResults();
+
+  // モックから一致
+  const mockHit = Object.keys(MOCK_CARDS).find(k => k.includes(q));
+  if (mockHit) {
+    hideLoading();
+    selectCardByName(mockHit);
+    return;
+  }
+
+  // APIから検索
+  try {
+    const url = `https://api.tcgdex.net/v2/ja/cards?name=${encodeURIComponent(q)}&sort:field=localId&sort:order=DESC&pagination:page=1&pagination:itemsPerPage=12`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    hideLoading();
+    if (Array.isArray(data) && data.length) {
+      showCardPicker(data, q);
+    } else {
+      showEmpty(q);
+    }
+  } catch {
+    hideLoading();
+    showEmpty(q);
+  }
+}
+
+function showCardPicker(cards, q) {
+  const picker = document.getElementById("card-picker");
+  document.getElementById("quick-picks").style.display = "none";
+  state.pickerCards = cards;
+
+  let grid = `<div class="card-picker"><div class="picker-label">「${q}」の検索結果 — カードを選択</div><div class="picker-grid">`;
+  cards.forEach((card, i) => {
+    const name   = card.name || "";
+    const imgUrl = card.image ? card.image + "/high.webp" : null;
+    const setName = card.set?.name || "";
+    const rarity  = card.rarity || "";
+    const id = JSON.stringify({name, set:setName, localId:card.localId, image:imgUrl, id:card.id});
+    const imgTag = imgUrl
+      ? `<img class="picker-img" src="${imgUrl}" alt="${name}" onerror="this.src='';this.style.background='#2a2a4e'">`
+      : `<div class="picker-img" style="background:linear-gradient(135deg,#1a1a2e,#2a2a4e);display:flex;align-items:center;justify-content:center;font-size:28px">🃏</div>`;
+    grid += `<div class="picker-card" id="picker-${i}" onclick='selectCardFromApi(${id.replace(/'/g,"&apos;")}, "picker-${i}")'>
+      ${imgTag}
+      <div class="picker-name">${name}</div>
+      <div class="picker-set">${setName} #${card.localId}</div>
+    </div>`;
+  });
+  grid += `</div></div>`;
+  picker.innerHTML = grid;
+  picker.style.display = "block";
+}
+
+function quickSearch(name) {
+  input.value = name;
+  doSearch();
+}
+
+// ────────────────────────────────────────────
+// カード選択
+// ────────────────────────────────────────────
+async function selectCardByName(name) {
+  hideSuggestions();
+  document.getElementById("quick-picks").style.display = "none";
+  document.getElementById("card-picker").style.display = "none";
+  const c = MOCK_CARDS[name];
+  if (!c) return;
+  state.selectedCard = { name, ...c };
+  state.selectedGrade = 10;
+  state.activeTab = "chart";
+  renderAll();
+  // Render APIから実データ取得を試みる
+  fetchRealSoldData(name, 10);
+  fetchRealSoldData(name, 9);
+  fetchRealSoldData(name, 8);
+}
+
+async function fetchRealSoldData(cardName, grade) {
+  try {
+    const res = await fetch(`${RENDER_API}/sold/${encodeURIComponent(cardName)}?grade=${grade}`);
+    const data = await res.json();
+    if (data.prices && data.prices.length >= 2 && state.selectedCard?.name === cardName) {
+      // 実データで上書き
+      state.selectedCard.grades[grade].prices = data.prices;
+      document.getElementById("demo-note").innerHTML =
+        "✅ スニーカーダンク実データ取得済み ／ " + new Date().toLocaleTimeString("ja-JP");
+      document.getElementById("demo-note").style.color = "#00D084";
+      if (state.selectedGrade === grade) renderAll();
+    }
+  } catch {
+    // 失敗時はモックデータのまま
+  }
+}
+
+async function selectCardFromApi(info, pickerId) {
+  hideSuggestions();
+  document.getElementById("card-picker").style.display = "none";
+  document.getElementById("quick-picks").style.display = "none";
+
+  // モックにあれば使う
+  const mockHit = Object.keys(MOCK_CARDS).find(k => k === info.name);
+  if (mockHit) { selectCardByName(mockHit); return; }
+
+  // APIカード（デモデータ生成）
+  const base  = Math.floor(Math.random()*40000)+10000;
+  const trend = Math.random()>0.5?1:-1;
+  const genPrices = (mult) => Array.from({length:8},(_,i)=>
+    Math.round(base*mult + trend*i*1200 + (Math.random()-0.5)*2000));
+
+  state.selectedCard = {
+    name: info.name, set: info.set, illustrator:"—", rarity: info.rarity || "—",
+    image: info.image,
+    grades:{
+      10:{prices:genPrices(2.2),  pop:Math.floor(Math.random()*200)+20},
+      9: {prices:genPrices(1.2),  pop:Math.floor(Math.random()*400)+80},
+      8: {prices:genPrices(0.65), pop:Math.floor(Math.random()*300)+60},
+    }
+  };
+  state.selectedGrade = 10;
+  state.activeTab = "chart";
+  renderAll();
+  // Render APIから実データ取得を試みる
+  fetchRealSoldData(info.name, 10);
+  fetchRealSoldData(info.name, 9);
+  fetchRealSoldData(info.name, 8);
+}
+
+function setGrade(g) {
+  state.selectedGrade = g;
+  renderAll();
+}
+function setTab(t) {
+  state.activeTab = t;
+  document.getElementById("tab-chart").classList.toggle("active", t==="chart");
+  document.getElementById("tab-compare").classList.toggle("active", t==="compare");
+  document.getElementById("chart-panel").style.display = t==="chart"?"block":"none";
+  document.getElementById("compare-panel").style.display = t==="compare"?"block":"none";
+}
+
+// ────────────────────────────────────────────
+// レンダリング
+// ────────────────────────────────────────────
+function renderAll() {
+  if (!state.selectedCard) return;
+  const card = state.selectedCard;
+  const g    = state.selectedGrade;
+  const gd   = card.grades[g];
+  const c    = GRADE_COLORS[g];
+
+  // 選択済みカード
+  const selDiv = document.getElementById("selected-card");
+  const imgHtml = card.image
+    ? `<img class="selected-img" src="${card.image}" alt="${card.name}" onerror="this.style.display='none'">`
+    : `<div class="selected-img" style="display:flex;align-items:center;justify-content:center;font-size:28px">🃏</div>`;
+  selDiv.innerHTML = `
+    ${imgHtml}
+    <div class="selected-info">
+      <div class="selected-name">${card.name}</div>
+      <div class="selected-meta">${card.set}　／　illus. ${card.illustrator}</div>
+      <div class="selected-rarity">${card.rarity}</div>
+    </div>`;
+  selDiv.style.display = "flex";
+
+  // グレードタブ
+  document.getElementById("grade-tabs").style.display = "flex";
+  document.querySelectorAll(".grade-btn").forEach((btn,i)=>{
+    const grades=[10,9,8];
+    btn.className = "grade-btn" + (grades[i]===g ? ` active-${g}` : "");
+  });
+
+  // 価格パネル
+  const latestPrice = gd.prices.at(-1);
+  const chg  = getPriceChange(gd.prices);
+  const score= getSellScore(gd.prices);
+  const sc   = scoreColor(score);
+  const circ = 2*Math.PI*26;
+
+  document.getElementById("price-label").textContent = `直近SOLD価格 (PSA${g})`;
+  document.getElementById("price-main").textContent  = `¥${latestPrice.toLocaleString()}`;
+  const chgEl = document.getElementById("price-change");
+  chgEl.textContent = `${chg>=0?"▲":"▼"} ${Math.abs(chg).toFixed(1)}% 前週比`;
+  chgEl.style.color = chg>=0?"#00D084":"#FF4B4B";
+  document.getElementById("price-pop").textContent = `POP ${gd.pop}枚　PSA${g}`;
+  document.getElementById("price-panel").style.display = "block";
+
+  const arc = document.getElementById("score-arc");
+  arc.setAttribute("stroke-dasharray", `${(score/100)*circ} ${circ}`);
+  arc.setAttribute("stroke", sc);
+  arc.style.filter = `drop-shadow(0 0 4px ${sc}88)`;
+  const numEl = document.getElementById("score-num");
+  numEl.textContent = score; numEl.style.color = sc;
+  const lblEl = document.getElementById("score-label");
+  lblEl.textContent = scoreText(score); lblEl.style.color = sc;
+
+  // タブ
+  document.getElementById("result-tabs").style.display = "flex";
+
+  // チャート
+  renderChart(gd.prices, g, c);
+
+  // 比較
+  renderCompare(card.grades);
+
+  // タブ切り替え反映
+  setTab(state.activeTab);
+
+  document.getElementById("demo-note").style.display = "block";
+}
+
+function renderChart(prices, g, c) {
+  const max = Math.max(...prices);
+  const barsHtml = prices.map((p,i) => {
+    const h = (p/max)*100;
+    const isLast = i===prices.length-1;
+    return `<div class="chart-bar" style="height:${h}%;background:${isLast?c:c+"55"};${isLast?`box-shadow:0 0 6px ${c}88`:""};flex:1"></div>`;
+  }).join("");
+  document.getElementById("chart-bars").innerHTML = barsHtml;
+  document.getElementById("chart-labels").innerHTML = WEEKS.map(w=>`<span class="chart-lbl">${w}</span>`).join("");
+
+  const min_p = Math.min(...prices), max_p = Math.max(...prices);
+  const avg_p = Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
+  document.getElementById("chart-stats").innerHTML = `
+    <div class="chart-stat">
+      <div class="chart-stat-label">8週最安値</div>
+      <div class="chart-stat-val" style="color:#888">¥${min_p.toLocaleString()}</div>
+    </div>
+    <div class="chart-stat">
+      <div class="chart-stat-label">8週最高値</div>
+      <div class="chart-stat-val" style="color:${c}">¥${max_p.toLocaleString()}</div>
+    </div>
+    <div class="chart-stat">
+      <div class="chart-stat-label">8週平均</div>
+      <div class="chart-stat-val" style="color:#ccc">¥${avg_p.toLocaleString()}</div>
+    </div>`;
+  document.getElementById("chart-panel").style.display = "block";
+}
+
+function renderCompare(grades) {
+  let html = "";
+  [10,9,8].forEach(g => {
+    const gd = grades[g];
+    const c  = GRADE_COLORS[g];
+    const latest = gd.prices.at(-1);
+    const chg    = getPriceChange(gd.prices);
+    const score  = getSellScore(gd.prices);
+    const sc     = scoreColor(score);
+    const prices = gd.prices;
+    const maxP   = Math.max(...prices);
+
+    // スパークライン SVG
+    const pts = prices.map((p,i) => {
+      const x=(i/(prices.length-1))*100;
+      const y=30-((p-Math.min(...prices))/(maxP-Math.min(...prices)||1))*28;
+      return `${x},${y}`;
+    }).join(" ");
+    const lastPt = pts.split(" ").at(-1);
+
+    html += `<div class="compare-row">
+      <div class="compare-top">
+        <div class="compare-spark">
+          <div class="grade-badge ${g===10?"g10":g===9?"g9":"g8"}" style="min-width:36px;padding:1px 7px">
+            <span class="psa-label" style="font-size:6px">PSA</span>
+            <span class="psa-num" style="font-size:14px">${g}</span>
+          </div>
+          <svg width="100" height="30" viewBox="0 0 100 30">
+            <polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="${lastPt.split(",")[0]}" cy="${lastPt.split(",")[1]}" r="2.5" fill="${c}"/>
+          </svg>
+        </div>
+        <div class="compare-price">
+          <div class="compare-price-val">¥${latest.toLocaleString()}</div>
+          <div class="compare-price-chg" style="color:${chg>=0?"#00D084":"#FF4B4B"}">${chg>=0?"▲":"▼"}${Math.abs(chg).toFixed(1)}%</div>
+        </div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" style="width:${score}%;background:${sc};box-shadow:0 0 4px ${sc}"></div>
+        </div>
+        <span class="score-bar-label" style="color:${sc}">${scoreText(score)} ${score}</span>
+      </div>
+    </div>`;
+  });
+  document.getElementById("compare-rows").innerHTML = html;
+  document.getElementById("compare-panel").style.display = "none"; // タブで制御
+}
+
+// ────────────────────────────────────────────
+// ローディング・空状態
+// ────────────────────────────────────────────
+function showLoading()  { document.getElementById("loading").style.display="block"; }
+function hideLoading()  { document.getElementById("loading").style.display="none"; }
+function hideResults()  {
+  ["selected-card","grade-tabs","price-panel","result-tabs","chart-panel","compare-panel","demo-note","card-picker"]
+    .forEach(id => document.getElementById(id).style.display="none");
+}
+function showEmpty(q) {
+  document.getElementById("card-picker").innerHTML =
+    `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">「${q}」は見つかりませんでした</div><div class="empty-sub">別のカード名で試してみてください</div></div>`;
+  document.getElementById("card-picker").style.display = "block";
+}
+</script>
+</body>
+</html>
